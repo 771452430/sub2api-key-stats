@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "npm run clean && next dev",
+    "clean": "rm -rf .next tsconfig.tsbuildinfo",
     "build": "next build",
-    "start": "next start",
+    "postbuild": "mkdir -p .next/standalone/.next && rm -rf .next/standalone/.next/static && cp -R .next/static .next/standalone/.next/static",
+    "start": "node .next/standalone/server.js",
+    "preview": "npm run build && npm run start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

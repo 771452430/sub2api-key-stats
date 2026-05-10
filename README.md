@@ -22,6 +22,21 @@ npm run dev
 
 打开 `http://localhost:3000`。
 
+如果本地开发时出现 `.next` chunk 缓存错误，可以用干净模式重启：
+
+```bash
+npm run dev:clean
+```
+
+生产预览建议使用 standalone 启动方式：
+
+```bash
+npm run build
+PORT=3100 HOSTNAME=127.0.0.1 npm start
+```
+
+打开 `http://127.0.0.1:3100`。
+
 ## 数据库只读账号
 
 建议在 Sub2API PostgreSQL 中创建专用只读账号，不要使用 Sub2API 的 owner 账号。
