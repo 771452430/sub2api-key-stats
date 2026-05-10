@@ -4,6 +4,7 @@ import {
   AlertCircle,
   BarChart3,
   CheckCircle2,
+  CircleDollarSign,
   Image,
   KeyRound,
   Layers3,
@@ -53,6 +54,7 @@ function createMockData(): UsageLookupResponse {
       modelCount: 6,
       endpointCount: 4,
       imageRequests: daily.reduce((sum, item) => sum + item.imageRequests, 0),
+      totalCostUsd: 891.5951,
       firstRequestAt: new Date(today.getTime() - 1000 * 60 * 60 * 24 * 12).toISOString(),
       lastRequestAt: new Date(today.getTime() - 1000 * 60 * 9).toISOString()
     },
@@ -155,6 +157,10 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatUsd(value: number) {
+  return `$${value.toFixed(4)}`;
+}
+
 function maxOf(values: number[]) {
   return Math.max(...values, 1);
 }
@@ -168,10 +174,10 @@ function StatCard({
   icon: ReactNode;
   label: string;
   value: string | number;
-  accent: "emerald" | "amber" | "violet" | "cyan";
+  accent: "emerald" | "amber" | "violet" | "cyan" | "rose";
 }) {
   return (
-    <section className="stat-card">
+    <section className="card stat-card">
       <div className={`stat-icon stat-icon--${accent}`}>{icon}</div>
       <p>{label}</p>
       <strong>{value}</strong>
@@ -225,6 +231,17 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
             <span>创建时间</span>
             <strong>{formatDate(data.key.createdAt)}</strong>
           </article>
+        </div>
+      </section>
+
+      <section className="card spend-card" aria-label="总消费">
+        <div className="spend-card__icon">
+          <CircleDollarSign aria-hidden="true" />
+        </div>
+        <div className="spend-card__content">
+          <span>总消费</span>
+          <strong>{formatUsd(data.summary.totalCostUsd)}</strong>
+          <p>当前 Key 累计消费</p>
         </div>
       </section>
 
@@ -396,7 +413,7 @@ export default function Home() {
               </div>
               <div>
                 <h2>API 统计查询</h2>
-                <p>只按当前 Key 聚合，不展示费用、Token 和耗时。</p>
+                <p>只按当前 Key 聚合，仅展示总消费，不展示 Token 和耗时。</p>
               </div>
             </div>
 

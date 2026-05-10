@@ -14,6 +14,7 @@ export type UsageLookupResponse = {
     modelCount: number;
     endpointCount: number;
     imageRequests: number;
+    totalCostUsd: number;
     firstRequestAt: string | null;
     lastRequestAt: string | null;
   };
@@ -138,6 +139,7 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
             count(distinct date(created_at at time zone 'Asia/Shanghai'))::bigint as active_days,
             count(distinct coalesce(nullif(requested_model, ''), model))::bigint as model_count,
             count(distinct coalesce(nullif(inbound_endpoint, ''), 'unknown'))::bigint as endpoint_count,
+            coalesce(sum(actual_cost), 0)::numeric as total_cost_usd,
             count(*) filter (
               where coalesce(image_count, 0) > 0
                  or coalesce(model, '') ilike '%image%'
@@ -240,6 +242,7 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
       modelCount: toNumber(summary.model_count),
       endpointCount: toNumber(summary.endpoint_count),
       imageRequests: toNumber(summary.image_requests),
+      totalCostUsd: toNumber(summary.total_cost_usd),
       firstRequestAt: toIso(summary.first_request_at as Date | string | null),
       lastRequestAt: toIso(summary.last_request_at as Date | string | null)
     },
