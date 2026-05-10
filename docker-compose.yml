@@ -1,0 +1,20 @@
+services:
+  key-stats:
+    build:
+      context: .
+    container_name: sub2api-key-stats
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:13080:3000"
+    networks:
+      - coolify
+      - sub2api
+
+networks:
+  coolify:
+    external: true
+  sub2api:
+    external: true
+    name: sub2api_sub2api-network
