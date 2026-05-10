@@ -3,7 +3,6 @@
 import {
   AlertCircle,
   BarChart3,
-  CalendarDays,
   CheckCircle2,
   Image,
   KeyRound,
@@ -200,7 +199,6 @@ function EmptyPanel() {
 }
 
 function Dashboard({ data }: { data: UsageLookupResponse }) {
-  const dailyMax = maxOf(data.daily.map((item) => item.requests));
   const modelMax = maxOf(data.models.map((item) => item.requests));
   const endpointMax = maxOf(data.endpoints.map((item) => item.requests));
 
@@ -246,7 +244,7 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
         />
         <StatCard
           accent="amber"
-          icon={<CalendarDays aria-hidden="true" />}
+          icon={<CheckCircle2 aria-hidden="true" />}
           label="活跃天数"
           value={data.summary.activeDays}
         />
@@ -265,31 +263,6 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
       </section>
 
       <div className="content-grid">
-        <section className="card card-section card-section--wide">
-          <div className="section-head">
-            <div>
-              <span className="section-kicker">Daily Trend</span>
-              <h2>日期趋势</h2>
-            </div>
-            <div className="section-badge">{data.range.replace("d", " 天")}</div>
-          </div>
-          <div className="timeline">
-            {data.daily.length === 0 ? (
-              <p className="muted">这个时间范围内还没有调用记录。</p>
-            ) : (
-              data.daily.map((item) => (
-                <div className="timeline-row" key={item.date}>
-                  <span>{item.date.slice(5)}</span>
-                  <div className="timeline-bar">
-                    <i style={{ width: `${(item.requests / dailyMax) * 100}%` }} />
-                  </div>
-                  <strong>{item.requests}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
         <section className="card card-section">
           <div className="section-head">
             <div>
