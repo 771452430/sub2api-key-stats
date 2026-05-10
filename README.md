@@ -69,6 +69,7 @@ GRANT SELECT (
 NEXT_PUBLIC_PUBLIC_BASE_URL=https://key.xiaokoudai.cc
 DATABASE_URL=postgresql://key_stats_reader:password@sub2api-postgres:5432/sub2api
 DATABASE_SSL=false
+SUB2API_UPSTREAM_URL=http://sub2api:8080
 USAGE_LOOKUP_RATE_LIMIT=30
 USAGE_LOOKUP_WINDOW_SECONDS=60
 ```
@@ -88,3 +89,13 @@ npm run build
 - 有效 Key 只返回该 Key 的统计。
 - 无效、停用、删除、过期 Key 返回统一错误。
 - 页面和接口响应中没有 Token、费用、总 Token、耗时字段。
+
+## 同域 API 代理
+
+为了让用户只看到 `key.xiaokoudai.cc`，应用内置了以下转发：
+
+- `https://key.xiaokoudai.cc/v1/*` -> `SUB2API_UPSTREAM_URL/v1/*`
+- `https://key.xiaokoudai.cc/responses` -> `SUB2API_UPSTREAM_URL/responses`
+- `https://key.xiaokoudai.cc/responses/*` -> `SUB2API_UPSTREAM_URL/responses/*`
+
+这样用户的客户端可以把 Base URL 配成 `https://key.xiaokoudai.cc`。
