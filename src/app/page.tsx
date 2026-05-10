@@ -28,9 +28,6 @@ type LookupState =
   | { status: "success"; data: UsageLookupResponse }
   | { status: "error"; message: string };
 
-const publicBaseUrl =
-  process.env.NEXT_PUBLIC_PUBLIC_BASE_URL || "https://key.xiaokoudai.cc";
-
 const ranges: Array<{ label: string; value: UsageRange }> = [
   { label: "7 天", value: "7d" },
   { label: "30 天", value: "30d" },
@@ -420,38 +417,7 @@ export default function Home() {
           </form>
         </header>
 
-        <section className="card tutorial-card">
-          <div className="section-head">
-            <div>
-              <span className="section-kicker">Quick Guide</span>
-              <h2>使用教程</h2>
-            </div>
-            <div className="section-chip">
-              <BookOpen aria-hidden="true" />
-              同域接入
-            </div>
-          </div>
-
-          <div className="tutorial-grid">
-            <div className="tutorial-copy">
-              <p>
-                把客户端的 Base URL 配成下面这个地址，API Key 使用你后台生成的
-                `sk-...`。如果你走 OpenAI 兼容接口，可以继续使用 `/v1` 和
-                `/responses`。
-              </p>
-            </div>
-            <div className="tutorial-code">
-              <code>{publicBaseUrl}</code>
-              <div className="tutorial-routes">
-                <span>/v1/*</span>
-                <span>/responses</span>
-                <span>/responses/*</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {lookupState.status === "success" ? <Dashboard data={lookupState.data} /> : <EmptyPanel />}
+      {lookupState.status === "success" ? <Dashboard data={lookupState.data} /> : <EmptyPanel />}
       </div>
 
       <button
