@@ -382,6 +382,30 @@ button:disabled {
   margin-top: 18px;
 }
 
+.query-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-ghost {
+  min-height: 42px;
+  padding: 0 14px;
+  color: #374151;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+}
+
+.btn-ghost:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.btn-ghost--soft {
+  color: var(--primary-color);
+}
+
 .security-notice {
   display: inline-flex;
   align-items: center;
@@ -916,6 +940,14 @@ td {
   .wide-card-input {
     min-height: 48px;
     padding-inline: 12px;
+  }
+
+  .query-actions {
+    flex-direction: column;
+  }
+
+  .query-actions .btn {
+    width: 100%;
   }
 
   .period-btn {
