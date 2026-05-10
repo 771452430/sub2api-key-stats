@@ -18,7 +18,7 @@ import {
 import type { ReactNode, FormEvent } from "react";
 import { startTransition, useState } from "react";
 
-import type { UsageLookupResponse, UsageRange } from "@/lib/usage";
+import type { UsageLookupResponse } from "@/lib/usage";
 
 type LookupState =
   | { status: "idle" }
@@ -26,15 +26,9 @@ type LookupState =
   | { status: "success"; data: UsageLookupResponse }
   | { status: "error"; message: string };
 
-const ranges: Array<{ label: string; value: UsageRange }> = [
-  { label: "7 天", value: "7d" },
-  { label: "30 天", value: "30d" },
-  { label: "90 天", value: "90d" }
-];
-
-function createMockData(range: UsageRange): UsageLookupResponse {
+function createMockData(): UsageLookupResponse {
   const today = new Date();
-  const dayCount = range === "7d" ? 7 : range === "90d" ? 14 : 10;
+  const dayCount = 10;
   const daily = Array.from({ length: dayCount }, (_, index) => {
     const date = new Date(today);
     date.setDate(today.getDate() - (dayCount - index - 1));
@@ -53,7 +47,6 @@ function createMockData(range: UsageRange): UsageLookupResponse {
       lastUsedAt: new Date(today.getTime() - 1000 * 60 * 9).toISOString(),
       expiresAt: new Date(today.getTime() + 1000 * 60 * 60 * 24 * 45).toISOString()
     },
-    range,
     summary: {
       totalRequests: daily.reduce((sum, item) => sum + item.requests, 0),
       activeDays: Math.max(9, Math.round(dayCount * 0.8)),
@@ -242,24 +235,9 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
           label="请求次数"
           value={data.summary.totalRequests}
         />
-        <StatCard
-          accent="amber"
-          icon={<CheckCircle2 aria-hidden="true" />}
-          label="活跃天数"
-          value={data.summary.activeDays}
-        />
-        <StatCard
-          accent="violet"
-          icon={<Layers3 aria-hidden="true" />}
-          label="模型数量"
-          value={data.summary.modelCount}
-        />
-        <StatCard
-          accent="cyan"
-          icon={<Image aria-hidden="true" />}
-          label="图片请求"
-          value={data.summary.imageRequests}
-        />
+        <StatCard accent="amber" icon={<CheckCircle2 aria-hidden="true" />} label="活跃天数" value={data.summary.activeDays} />
+        <StatCard accent="violet" icon={<Layers3 aria-hidden="true" />} label="模型数量" value={data.summary.modelCount} />
+        <StatCard accent="cyan" icon={<Image aria-hidden="true" />} label="图片请求" value={data.summary.imageRequests} />
       </section>
 
       <div className="content-grid">
@@ -355,7 +333,6 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
 
 export default function Home() {
   const [apiKey, setApiKey] = useState("");
-  const [range, setRange] = useState<UsageRange>("30d");
   const [lookupState, setLookupState] = useState<LookupState>({ status: "idle" });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -377,7 +354,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ apiKey: trimmedKey, range })
+        body: JSON.stringify({ apiKey: trimmedKey })
       });
       const payload = (await response.json()) as
         | { ok: true; data: UsageLookupResponse }
@@ -407,7 +384,7 @@ export default function Home() {
               </div>
               <h1 className="header-title">API 使用统计</h1>
               <p className="hero-copy">
-                输入你的 API Key，快速查看调用趋势、模型分布、接口分布和最近记录。
+                输入你的 API Key，快速查看模型分布、接口分布和最近记录。
               </p>
             </div>
           </div>
@@ -441,23 +418,6 @@ export default function Home() {
                 </div>
               </label>
 
-              <div className="field-block">
-                <span>时间范围</span>
-                <div className="period-group">
-                  {ranges.map((item) => (
-                    <button
-                      aria-pressed={range === item.value}
-                      className={`period-btn ${range === item.value ? "active" : ""}`}
-                      key={item.value}
-                      onClick={() => setRange(item.value)}
-                      type="button"
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="field-block field-block--button">
                 <span>开始查询</span>
                 <button className="btn btn-query btn-primary" disabled={lookupState.status === "loading"} type="submit">
@@ -473,7 +433,7 @@ export default function Home() {
 
           <div className="wide-card-foot">
             <div className="query-actions">
-              <button className="btn btn-ghost" onClick={() => setLookupState({ status: "success", data: createMockData(range) })} type="button">
+              <button className="btn btn-ghost" onClick={() => setLookupState({ status: "success", data: createMockData() })} type="button">
                 查看示例数据
               </button>
               <button className="btn btn-ghost btn-ghost--soft" onClick={() => { setApiKey(""); setLookupState({ status: "idle" }); }} type="button">

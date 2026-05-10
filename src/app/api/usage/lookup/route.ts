@@ -4,7 +4,6 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
   isPublicLookupError,
   lookupUsageByApiKey,
-  normalizeRange,
   validateApiKeyShape
 } from "@/lib/usage";
 
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const payload = body as { apiKey?: unknown; range?: unknown };
+  const payload = body as { apiKey?: unknown };
   const apiKey = validateApiKeyShape(payload.apiKey);
 
   if (!apiKey) {
@@ -51,7 +50,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const data = await lookupUsageByApiKey(apiKey, normalizeRange(payload.range));
+    const data = await lookupUsageByApiKey(apiKey);
     return NextResponse.json({
       ok: true,
       data

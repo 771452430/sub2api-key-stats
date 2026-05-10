@@ -1,13 +1,5 @@
 import { getPool } from "@/lib/db";
 
-const RANGE_DAYS = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90
-} as const;
-
-export type UsageRange = keyof typeof RANGE_DAYS;
-
 export type UsageLookupResponse = {
   key: {
     name: string;
@@ -16,7 +8,6 @@ export type UsageLookupResponse = {
     lastUsedAt: string | null;
     expiresAt: string | null;
   };
-  range: UsageRange;
   summary: {
     totalRequests: number;
     activeDays: number;
@@ -63,14 +54,6 @@ type ApiKeyRow = {
 type CountRow = Record<string, string | number | null>;
 
 const PUBLIC_ERROR = "这个 API Key 不可用或不存在";
-
-export function normalizeRange(input: unknown): UsageRange {
-  if (input === "7d" || input === "30d" || input === "90d") {
-    return input;
-  }
-
-  return "30d";
-}
 
 export function maskApiKey(apiKey: string) {
   if (apiKey.length <= 14) {
@@ -127,9 +110,8 @@ export function isPublicLookupError(error: unknown) {
   return error instanceof Error && error.message === PUBLIC_ERROR;
 }
 
-export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Promise<UsageLookupResponse> {
+export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupResponse> {
   const pool = getPool();
-  const days = RANGE_DAYS[range];
 
   const keyResult = await pool.query<ApiKeyRow>(
     `
@@ -145,7 +127,7 @@ export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Pr
   const key = keyResult.rows[0];
   assertUsableKey(key);
 
-  const queryParams = [key.id, days];
+  const queryParams = [key.id];
 
   const [summaryResult, dailyResult, modelResult, endpointResult, recentResult] =
     await Promise.all([
@@ -164,7 +146,6 @@ export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Pr
             max(created_at) as last_request_at
           from usage_logs
           where api_key_id = $1
-            and created_at >= now() - ($2::int * interval '1 day')
         `,
         queryParams
       ),
@@ -179,7 +160,6 @@ export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Pr
             )::bigint as image_requests
           from usage_logs
           where api_key_id = $1
-            and created_at >= now() - ($2::int * interval '1 day')
           group by 1
           order by 1 asc
         `,
@@ -196,7 +176,6 @@ export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Pr
             )::bigint as image_requests
           from usage_logs
           where api_key_id = $1
-            and created_at >= now() - ($2::int * interval '1 day')
           group by 1
           order by requests desc
           limit 12
@@ -210,7 +189,6 @@ export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Pr
             count(*)::bigint as requests
           from usage_logs
           where api_key_id = $1
-            and created_at >= now() - ($2::int * interval '1 day')
           group by 1
           order by requests desc
           limit 8
@@ -239,7 +217,6 @@ export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Pr
             service_tier
           from usage_logs
           where api_key_id = $1
-            and created_at >= now() - ($2::int * interval '1 day')
           order by created_at desc
           limit 20
         `,
@@ -257,7 +234,6 @@ export async function lookupUsageByApiKey(apiKey: string, range: UsageRange): Pr
       lastUsedAt: toIso(key.last_used_at),
       expiresAt: toIso(key.expires_at)
     },
-    range,
     summary: {
       totalRequests: toNumber(summary.total_requests),
       activeDays: toNumber(summary.active_days),
