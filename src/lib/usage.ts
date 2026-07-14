@@ -14,7 +14,10 @@ export type UsageLookupResponse = {
     modelCount: number;
     endpointCount: number;
     imageRequests: number;
-    totalCostUsd: number;
+    windowUsage: {
+      fiveHours: UsageWindow;
+      twentyFourHours: UsageWindow;
+    };
     firstRequestAt: string | null;
     lastRequestAt: string | null;
   };
@@ -50,9 +53,21 @@ type ApiKeyRow = {
   created_at: Date;
   last_used_at: Date | null;
   expires_at: Date | null;
+  rate_limit_5h: string | number | null;
+  usage_5h: string | number | null;
+  rate_limit_1d: string | number | null;
+  usage_1d: string | number | null;
+  window_5h_start: Date | null;
+  window_1d_start: Date | null;
 };
 
 type CountRow = Record<string, string | number | null>;
+type UsageWindow = {
+  used: number;
+  limit: number | null;
+  percent: number | null;
+  windowStartAt: string | null;
+};
 
 const PUBLIC_ERROR = "这个 API Key 不可用或不存在";
 
@@ -111,12 +126,49 @@ export function isPublicLookupError(error: unknown) {
   return error instanceof Error && error.message === PUBLIC_ERROR;
 }
 
+function toPercent(used: number, limit: number | null) {
+  if (!limit) {
+    return null;
+  }
+
+  return Math.round((used / limit) * 1000) / 10;
+}
+
+function normalizeLimit(value: string | number | null) {
+  const numberValue = toNumber(value);
+  return numberValue > 0 ? numberValue : null;
+}
+
+function createUsageWindow(used: string | number | null, limit: string | number | null, windowStartAt: Date | null): UsageWindow {
+  const usedValue = toNumber(used);
+  const limitValue = normalizeLimit(limit);
+
+  return {
+    used: usedValue,
+    limit: limitValue,
+    percent: toPercent(usedValue, limitValue),
+    windowStartAt: toIso(windowStartAt)
+  };
+}
+
 export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupResponse> {
   const pool = getPool();
 
   const keyResult = await pool.query<ApiKeyRow>(
     `
-      select id, name, status, created_at, last_used_at, expires_at
+      select
+        id,
+        name,
+        status,
+        created_at,
+        last_used_at,
+        expires_at,
+        rate_limit_5h,
+        usage_5h,
+        rate_limit_1d,
+        usage_1d,
+        window_5h_start,
+        window_1d_start
       from api_keys
       where key = $1
         and deleted_at is null
@@ -139,7 +191,6 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
             count(distinct date(created_at at time zone 'Asia/Shanghai'))::bigint as active_days,
             count(distinct coalesce(nullif(requested_model, ''), model))::bigint as model_count,
             count(distinct coalesce(nullif(inbound_endpoint, ''), 'unknown'))::bigint as endpoint_count,
-            coalesce(sum(actual_cost), 0)::numeric as total_cost_usd,
             count(*) filter (
               where coalesce(image_count, 0) > 0
                  or coalesce(model, '') ilike '%image%'
@@ -242,7 +293,10 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
       modelCount: toNumber(summary.model_count),
       endpointCount: toNumber(summary.endpoint_count),
       imageRequests: toNumber(summary.image_requests),
-      totalCostUsd: toNumber(summary.total_cost_usd),
+      windowUsage: {
+        fiveHours: createUsageWindow(key.usage_5h, key.rate_limit_5h, key.window_5h_start),
+        twentyFourHours: createUsageWindow(key.usage_1d, key.rate_limit_1d, key.window_1d_start)
+      },
       firstRequestAt: toIso(summary.first_request_at as Date | string | null),
       lastRequestAt: toIso(summary.last_request_at as Date | string | null)
     },

@@ -1,12 +1,12 @@
 # Sub2API Key Stats
 
-一个独立的 Sub2API API Key 使用统计页。用户只需要输入自己的 `sk-...` Key，就能查看这个 Key 的请求次数、模型分布、接口分布、图片请求和最近调用记录。
+一个独立的 Sub2API API Key 使用统计页。用户只需要输入自己的 `sk-...` Key，就能查看这个 Key 的请求次数、模型分布、接口分布、5h / 24h 额度占比和最近调用记录。
 
 这个项目不改动 `Wei-Shaw/sub2api` 源码，也不要求用户登录 Sub2API 后台。
 
 ## 不展示的信息
 
-- 只展示总消费，不展示费用明细。
+- 不展示消费金额或费用明细。
 - 不展示 Token。
 - 不展示总 Token。
 - 不展示总耗时或单次耗时。
@@ -55,7 +55,13 @@ GRANT SELECT (
   created_at,
   deleted_at,
   expires_at,
-  last_used_at
+  last_used_at,
+  rate_limit_5h,
+  usage_5h,
+  rate_limit_1d,
+  usage_1d,
+  window_5h_start,
+  window_1d_start
 ) ON public.api_keys TO key_stats_reader;
 
 GRANT SELECT (
@@ -101,4 +107,4 @@ npm run build
 
 - 有效 Key 只返回该 Key 的统计。
 - 无效、停用、删除、过期 Key 返回统一错误。
-- 页面和接口响应中没有 Token、费用明细、总 Token、耗时字段。
+- 页面和接口响应中没有 Token、费用、总 Token、耗时字段。

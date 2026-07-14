@@ -4,7 +4,7 @@ import {
   AlertCircle,
   BarChart3,
   CheckCircle2,
-  CircleDollarSign,
+  Gauge,
   Image,
   KeyRound,
   Layers3,
@@ -54,7 +54,20 @@ function createMockData(): UsageLookupResponse {
       modelCount: 6,
       endpointCount: 4,
       imageRequests: daily.reduce((sum, item) => sum + item.imageRequests, 0),
-      totalCostUsd: 891.5951,
+      windowUsage: {
+        fiveHours: {
+          used: 36.53,
+          limit: 700,
+          percent: 5.2,
+          windowStartAt: new Date(today.getTime() - 1000 * 60 * 43).toISOString()
+        },
+        twentyFourHours: {
+          used: 514.24,
+          limit: 700,
+          percent: 73.5,
+          windowStartAt: new Date(today.getTime() - 1000 * 60 * 38).toISOString()
+        }
+      },
       firstRequestAt: new Date(today.getTime() - 1000 * 60 * 60 * 24 * 12).toISOString(),
       lastRequestAt: new Date(today.getTime() - 1000 * 60 * 9).toISOString()
     },
@@ -157,12 +170,33 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function formatUsd(value: number) {
-  return `$${value.toFixed(4)}`;
-}
-
 function maxOf(values: number[]) {
   return Math.max(...values, 1);
+}
+
+function formatPercent(value: number | null) {
+  return value === null ? "未配置" : `${value.toFixed(1)}%`;
+}
+
+function formatUsd(value: number) {
+  return `$${value.toFixed(2)}`;
+}
+
+function formatWindowMeta(used: number, limit: number | null) {
+  return limit === null ? `${formatUsd(used)} / 未配置` : `${formatUsd(used)} / ${formatUsd(limit)}`;
+}
+
+function formatWindowHint(windowStartAt: string | null) {
+  if (!windowStartAt) {
+    return "窗口时间未记录";
+  }
+
+  const diffMs = Date.now() - new Date(windowStartAt).getTime();
+  const totalMinutes = Math.max(Math.floor(diffMs / 60_000), 0);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return hours > 0 ? `已运行 ${hours}h ${minutes}m` : `已运行 ${minutes}m`;
 }
 
 function StatCard({
@@ -194,6 +228,38 @@ function EmptyPanel() {
       <h2>输入 API Key 后查看使用记录</h2>
       <p>查询结果只按当前 Key 聚合，不会展开同用户下的其他 Key。</p>
     </section>
+  );
+}
+
+function QuotaRow({
+  label,
+  used,
+  limit,
+  percent,
+  windowStartAt,
+  tone
+}: {
+  label: string;
+  used: number;
+  limit: number | null;
+  percent: number | null;
+  windowStartAt: string | null;
+  tone: "five" | "day";
+}) {
+  const progressWidth = `${Math.min(percent ?? 0, 100)}%`;
+
+  return (
+    <article className="quota-row">
+      <div className="quota-row__head">
+        <span>{label}</span>
+        <strong>{formatPercent(percent)}</strong>
+      </div>
+      <p className="quota-row__meta">{formatWindowMeta(used, limit)}</p>
+      <i className={`quota-progress quota-progress--${tone}`}>
+        <b style={{ width: progressWidth }} />
+      </i>
+      <small className="quota-row__hint">{formatWindowHint(windowStartAt)}</small>
+    </article>
   );
 }
 
@@ -234,14 +300,34 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
         </div>
       </section>
 
-      <section className="card spend-card" aria-label="总消费">
-        <div className="spend-card__icon">
-          <CircleDollarSign aria-hidden="true" />
+      <section className="card quota-card" aria-label="额度占比">
+        <div className="quota-card__summary">
+          <div className="quota-card__icon">
+            <Gauge aria-hidden="true" />
+          </div>
+          <div className="quota-card__label">
+            <span>额度占比</span>
+            <strong>窗口已用量</strong>
+          </div>
         </div>
-        <div className="spend-card__content">
-          <span>总消费</span>
-          <strong>{formatUsd(data.summary.totalCostUsd)}</strong>
-          <p>当前 Key 累计消费</p>
+
+        <div className="quota-card__body">
+          <QuotaRow
+            label="近 5 小时"
+            used={data.summary.windowUsage.fiveHours.used}
+            limit={data.summary.windowUsage.fiveHours.limit}
+            percent={data.summary.windowUsage.fiveHours.percent}
+            windowStartAt={data.summary.windowUsage.fiveHours.windowStartAt}
+            tone="five"
+          />
+          <QuotaRow
+            label="近 24 小时"
+            used={data.summary.windowUsage.twentyFourHours.used}
+            limit={data.summary.windowUsage.twentyFourHours.limit}
+            percent={data.summary.windowUsage.twentyFourHours.percent}
+            windowStartAt={data.summary.windowUsage.twentyFourHours.windowStartAt}
+            tone="day"
+          />
         </div>
       </section>
 
@@ -413,7 +499,7 @@ export default function Home() {
               </div>
               <div>
                 <h2>API 统计查询</h2>
-                <p>只按当前 Key 聚合，仅展示总消费，不展示 Token 和耗时。</p>
+                <p>只按当前 Key 聚合，展示请求统计和 5h / 24h 速率限制，不展示 Token 和耗时。</p>
               </div>
             </div>
 
