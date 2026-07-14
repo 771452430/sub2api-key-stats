@@ -27,124 +27,6 @@ type LookupState =
   | { status: "success"; data: UsageLookupResponse }
   | { status: "error"; message: string };
 
-function createMockData(): UsageLookupResponse {
-  const today = new Date();
-  const dayCount = 10;
-  const daily = Array.from({ length: dayCount }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (dayCount - index - 1));
-    return {
-      date: date.toISOString().slice(0, 10),
-      requests: [26, 31, 44, 52, 39, 61, 74, 66, 58, 49, 71, 83, 92, 87][index] ?? 42,
-      imageRequests: [2, 3, 4, 5, 3, 6, 7, 6, 5, 4, 7, 8, 9, 8][index] ?? 3
-    };
-  });
-
-  return {
-    key: {
-      name: "示例 Key / Demo Key",
-      maskedKey: "sk-demo...9f2c11",
-      createdAt: new Date(today.getTime() - 1000 * 60 * 60 * 24 * 45).toISOString(),
-      lastUsedAt: new Date(today.getTime() - 1000 * 60 * 9).toISOString(),
-      expiresAt: new Date(today.getTime() + 1000 * 60 * 60 * 24 * 45).toISOString()
-    },
-    summary: {
-      totalRequests: daily.reduce((sum, item) => sum + item.requests, 0),
-      activeDays: Math.max(9, Math.round(dayCount * 0.8)),
-      modelCount: 6,
-      endpointCount: 4,
-      imageRequests: daily.reduce((sum, item) => sum + item.imageRequests, 0),
-      windowUsage: {
-        fiveHours: {
-          used: 36.53,
-          limit: 700,
-          percent: 5.2,
-          windowStartAt: new Date(today.getTime() - 1000 * 60 * 43).toISOString()
-        },
-        twentyFourHours: {
-          used: 514.24,
-          limit: 700,
-          percent: 73.5,
-          windowStartAt: new Date(today.getTime() - 1000 * 60 * 38).toISOString()
-        }
-      },
-      firstRequestAt: new Date(today.getTime() - 1000 * 60 * 60 * 24 * 12).toISOString(),
-      lastRequestAt: new Date(today.getTime() - 1000 * 60 * 9).toISOString()
-    },
-    daily,
-    models: [
-      { model: "gpt-5.5", requests: 1480, imageRequests: 0 },
-      { model: "gpt-5.4", requests: 920, imageRequests: 0 },
-      { model: "gpt-image-2", requests: 312, imageRequests: 312 },
-      { model: "gpt-5.4-mini", requests: 284, imageRequests: 0 },
-      { model: "gpt-5-codex", requests: 168, imageRequests: 0 },
-      { model: "gpt-4.1", requests: 96, imageRequests: 0 }
-    ],
-    endpoints: [
-      { endpoint: "/responses", requests: 2410 },
-      { endpoint: "/v1/chat/completions", requests: 514 },
-      { endpoint: "/v1/images/generations", requests: 312 },
-      { endpoint: "/v1/responses", requests: 304 }
-    ],
-    recent: [
-      {
-        createdAt: new Date(today.getTime() - 1000 * 60 * 3).toISOString(),
-        model: "gpt-image-2",
-        endpoint: "/v1/images/generations",
-        stream: false,
-        imageCount: 1,
-        imageSize: "1024x1024",
-        serviceTier: "default"
-      },
-      {
-        createdAt: new Date(today.getTime() - 1000 * 60 * 16).toISOString(),
-        model: "gpt-5.5",
-        endpoint: "/responses",
-        stream: true,
-        imageCount: 0,
-        imageSize: null,
-        serviceTier: "flex"
-      },
-      {
-        createdAt: new Date(today.getTime() - 1000 * 60 * 28).toISOString(),
-        model: "gpt-5.4",
-        endpoint: "/responses",
-        stream: true,
-        imageCount: 0,
-        imageSize: null,
-        serviceTier: "default"
-      },
-      {
-        createdAt: new Date(today.getTime() - 1000 * 60 * 44).toISOString(),
-        model: "gpt-4.1",
-        endpoint: "/v1/chat/completions",
-        stream: false,
-        imageCount: 0,
-        imageSize: null,
-        serviceTier: "default"
-      },
-      {
-        createdAt: new Date(today.getTime() - 1000 * 60 * 70).toISOString(),
-        model: "gpt-5.4-mini",
-        endpoint: "/v1/responses",
-        stream: true,
-        imageCount: 0,
-        imageSize: null,
-        serviceTier: "auto"
-      },
-      {
-        createdAt: new Date(today.getTime() - 1000 * 60 * 88).toISOString(),
-        model: "gpt-5-codex",
-        endpoint: "/responses",
-        stream: true,
-        imageCount: 0,
-        imageSize: null,
-        serviceTier: "default"
-      }
-    ]
-  };
-}
-
 function formatDateTime(value: string | null) {
   if (!value) {
     return "暂无";
@@ -536,9 +418,6 @@ export default function Home() {
 
           <div className="wide-card-foot">
             <div className="query-actions">
-              <button className="btn btn-ghost" onClick={() => setLookupState({ status: "success", data: createMockData() })} type="button">
-                查看示例数据
-              </button>
               <button className="btn btn-ghost btn-ghost--soft" onClick={() => { setApiKey(""); setLookupState({ status: "idle" }); }} type="button">
                 清空
               </button>
