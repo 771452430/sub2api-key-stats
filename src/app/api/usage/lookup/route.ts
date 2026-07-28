@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { resolveLookupSecret, validateLookupSecretShape } from "@/lib/lookup-tokens";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   isPublicLookupError,
-  lookupUsageByApiKey,
-  validateApiKeyShape
+  lookupUsageByApiKeyId
 } from "@/lib/usage";
 
 export const runtime = "nodejs";
@@ -19,11 +19,21 @@ function clientIp(request: NextRequest) {
   return request.headers.get("x-real-ip") || "unknown";
 }
 
+function jsonResponse(body: unknown, init?: ResponseInit) {
+  return NextResponse.json(body, {
+    ...init,
+    headers: {
+      "Cache-Control": "no-store",
+      ...init?.headers
+    }
+  });
+}
+
 export async function POST(request: NextRequest) {
   const rateLimit = checkRateLimit(clientIp(request));
 
   if (!rateLimit.allowed) {
-    return NextResponse.json(
+    return jsonResponse(
       { ok: false, message: "查询太频繁了，请稍后再试" },
       { status: 429 }
     );
@@ -33,38 +43,47 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
+    return jsonResponse(
       { ok: false, message: "请求格式不正确" },
       { status: 400 }
     );
   }
 
-  const payload = body as { apiKey?: unknown };
-  const apiKey = validateApiKeyShape(payload.apiKey);
+  const payload = body as { lookupSecret?: unknown };
+  const lookupSecret = validateLookupSecretShape(payload.lookupSecret);
 
-  if (!apiKey) {
-    return NextResponse.json(
-      { ok: false, message: "请输入有效的 API Key" },
+  if (!lookupSecret) {
+    return jsonResponse(
+      { ok: false, message: "请输入有效的查询秘钥" },
       { status: 400 }
     );
   }
 
   try {
-    const data = await lookupUsageByApiKey(apiKey);
-    return NextResponse.json({
+    const lookupToken = await resolveLookupSecret(lookupSecret);
+
+    if (!lookupToken) {
+      return jsonResponse(
+        { ok: false, message: "这个查询秘钥不可用或不存在" },
+        { status: 404 }
+      );
+    }
+
+    const data = await lookupUsageByApiKeyId(lookupToken.apiKeyId, lookupToken.maskedApiKey);
+    return jsonResponse({
       ok: true,
       data
     });
   } catch (error) {
     if (isPublicLookupError(error)) {
-      return NextResponse.json(
-        { ok: false, message: "这个 API Key 不可用或不存在" },
+      return jsonResponse(
+        { ok: false, message: "这个查询秘钥不可用或不存在" },
         { status: 404 }
       );
     }
 
     console.error("usage lookup failed", error instanceof Error ? error.message : "unknown error");
-    return NextResponse.json(
+    return jsonResponse(
       { ok: false, message: "查询失败，请稍后再试" },
       { status: 500 }
     );

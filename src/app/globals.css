@@ -721,6 +721,10 @@ button:disabled {
   background: linear-gradient(90deg, #0ea5e9, #6366f1);
 }
 
+.quota-progress--week b {
+  background: linear-gradient(90deg, #0f766e, #14b8a6);
+}
+
 .stat-card {
   min-height: 184px;
   padding: 22px;

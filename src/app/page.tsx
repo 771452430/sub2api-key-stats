@@ -77,6 +77,12 @@ function formatWindowHint(windowStartAt: string | null) {
   const totalMinutes = Math.max(Math.floor(diffMs / 60_000), 0);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+
+  if (days > 0) {
+    return `已运行 ${days}d ${remainingHours}h`;
+  }
 
   return hours > 0 ? `已运行 ${hours}h ${minutes}m` : `已运行 ${minutes}m`;
 }
@@ -107,7 +113,7 @@ function EmptyPanel() {
       <div className="empty-state__icon">
         <LockKeyhole aria-hidden="true" />
       </div>
-      <h2>输入 API Key 后查看使用记录</h2>
+      <h2>输入查询秘钥后查看使用记录</h2>
       <p>查询结果只按当前 Key 聚合，不会展开同用户下的其他 Key。</p>
     </section>
   );
@@ -126,7 +132,7 @@ function QuotaRow({
   limit: number | null;
   percent: number | null;
   windowStartAt: string | null;
-  tone: "five" | "day";
+  tone: "five" | "day" | "week";
 }) {
   const progressWidth = `${Math.min(percent ?? 0, 100)}%`;
 
@@ -209,6 +215,14 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
             percent={data.summary.windowUsage.twentyFourHours.percent}
             windowStartAt={data.summary.windowUsage.twentyFourHours.windowStartAt}
             tone="day"
+          />
+          <QuotaRow
+            label="近 7 天"
+            used={data.summary.windowUsage.sevenDays.used}
+            limit={data.summary.windowUsage.sevenDays.limit}
+            percent={data.summary.windowUsage.sevenDays.percent}
+            windowStartAt={data.summary.windowUsage.sevenDays.windowStartAt}
+            tone="week"
           />
         </div>
       </section>
@@ -317,15 +331,15 @@ function Dashboard({ data }: { data: UsageLookupResponse }) {
 }
 
 export default function Home() {
-  const [apiKey, setApiKey] = useState("");
+  const [lookupSecret, setLookupSecret] = useState("");
   const [lookupState, setLookupState] = useState<LookupState>({ status: "idle" });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmedKey = apiKey.trim();
+    const trimmedSecret = lookupSecret.trim();
 
-    if (!trimmedKey) {
-      setLookupState({ status: "error", message: "请输入 API Key" });
+    if (!trimmedSecret) {
+      setLookupState({ status: "error", message: "请输入查询秘钥" });
       return;
     }
 
@@ -339,7 +353,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ apiKey: trimmedKey })
+        body: JSON.stringify({ lookupSecret: trimmedSecret })
       });
       const payload = (await response.json()) as
         | { ok: true; data: UsageLookupResponse }
@@ -351,7 +365,7 @@ export default function Home() {
       }
 
       setLookupState({ status: "success", data: payload.data });
-      setApiKey("");
+      setLookupSecret("");
     } catch {
       setLookupState({ status: "error", message: "网络异常，请稍后再试" });
     }
@@ -369,7 +383,7 @@ export default function Home() {
               </div>
               <h1 className="header-title">API 使用统计</h1>
               <p className="hero-copy">
-                输入你的 API Key，快速查看模型分布、接口分布和最近记录。
+                输入你的查询秘钥，快速查看模型分布、接口分布和最近记录。
               </p>
             </div>
           </div>
@@ -381,24 +395,24 @@ export default function Home() {
               </div>
               <div>
                 <h2>API 统计查询</h2>
-                <p>只按当前 Key 聚合，展示请求统计和 5h / 24h 速率限制，不展示 Token 和耗时。</p>
+                <p>只按当前查询秘钥绑定的 Key 聚合，展示请求统计和 5h / 24h / 7d 速率限制。</p>
               </div>
             </div>
 
             <div className="api-input-grid">
-              <label className="field-block" htmlFor="api-key">
-                <span>API Key</span>
+              <label className="field-block" htmlFor="lookup-secret">
+                <span>查询秘钥</span>
                 <div className="wide-card-input">
                   <KeyRound aria-hidden="true" />
                   <input
                     autoComplete="off"
-                    id="api-key"
-                    name="api-key"
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder="请输入 sk-..."
+                    id="lookup-secret"
+                    name="lookup-secret"
+                    onChange={(event) => setLookupSecret(event.target.value)}
+                    placeholder="请输入 usage_..."
                     spellCheck={false}
                     type="password"
-                    value={apiKey}
+                    value={lookupSecret}
                   />
                 </div>
               </label>
@@ -418,14 +432,14 @@ export default function Home() {
 
           <div className="wide-card-foot">
             <div className="query-actions">
-              <button className="btn btn-ghost btn-ghost--soft" onClick={() => { setApiKey(""); setLookupState({ status: "idle" }); }} type="button">
+              <button className="btn btn-ghost btn-ghost--soft" onClick={() => { setLookupSecret(""); setLookupState({ status: "idle" }); }} type="button">
                 清空
               </button>
             </div>
 
             <div className="security-notice">
               <ShieldCheck aria-hidden="true" />
-              API Key 只用于本次服务端查询，不会写入浏览器存储。
+              查询秘钥只能查看统计，不能调用模型，不会写入浏览器存储。
               </div>
 
               {lookupState.status === "error" ? (

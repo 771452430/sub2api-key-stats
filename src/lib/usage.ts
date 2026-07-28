@@ -1,4 +1,4 @@
-import { getPool } from "@/lib/db";
+import { getSub2Pool } from "@/lib/db";
 
 export type UsageLookupResponse = {
   key: {
@@ -17,6 +17,7 @@ export type UsageLookupResponse = {
     windowUsage: {
       fiveHours: UsageWindow;
       twentyFourHours: UsageWindow;
+      sevenDays: UsageWindow;
     };
     firstRequestAt: string | null;
     lastRequestAt: string | null;
@@ -57,8 +58,11 @@ type ApiKeyRow = {
   usage_5h: string | number | null;
   rate_limit_1d: string | number | null;
   usage_1d: string | number | null;
+  rate_limit_7d: string | number | null;
+  usage_7d: string | number | null;
   window_5h_start: Date | null;
   window_1d_start: Date | null;
+  window_7d_start: Date | null;
 };
 
 type CountRow = Record<string, string | number | null>;
@@ -70,6 +74,23 @@ type UsageWindow = {
 };
 
 const PUBLIC_ERROR = "这个 API Key 不可用或不存在";
+const API_KEY_COLUMNS = `
+  id,
+  name,
+  status,
+  created_at,
+  last_used_at,
+  expires_at,
+  rate_limit_5h,
+  usage_5h,
+  rate_limit_1d,
+  usage_1d,
+  rate_limit_7d,
+  usage_7d,
+  window_5h_start,
+  window_1d_start,
+  window_7d_start
+`;
 
 export function maskApiKey(apiKey: string) {
   if (apiKey.length <= 14) {
@@ -151,24 +172,12 @@ function createUsageWindow(used: string | number | null, limit: string | number 
   };
 }
 
-export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupResponse> {
-  const pool = getPool();
+async function findApiKeyByApiKey(apiKey: string) {
+  const pool = getSub2Pool();
 
   const keyResult = await pool.query<ApiKeyRow>(
     `
-      select
-        id,
-        name,
-        status,
-        created_at,
-        last_used_at,
-        expires_at,
-        rate_limit_5h,
-        usage_5h,
-        rate_limit_1d,
-        usage_1d,
-        window_5h_start,
-        window_1d_start
+      select ${API_KEY_COLUMNS}
       from api_keys
       where key = $1
         and deleted_at is null
@@ -177,8 +186,42 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
     [apiKey]
   );
 
-  const key = keyResult.rows[0];
+  return keyResult.rows[0];
+}
+
+async function findApiKeyById(apiKeyId: string) {
+  const pool = getSub2Pool();
+
+  const keyResult = await pool.query<ApiKeyRow>(
+    `
+      select ${API_KEY_COLUMNS}
+      from api_keys
+      where id = $1
+        and deleted_at is null
+      limit 1
+    `,
+    [apiKeyId]
+  );
+
+  return keyResult.rows[0];
+}
+
+export async function findUsableApiKeyByApiKey(apiKey: string) {
+  const key = await findApiKeyByApiKey(apiKey);
   assertUsableKey(key);
+
+  return {
+    id: String(key.id),
+    name: key.name,
+    maskedKey: maskApiKey(apiKey),
+    createdAt: key.created_at.toISOString(),
+    lastUsedAt: toIso(key.last_used_at),
+    expiresAt: toIso(key.expires_at)
+  };
+}
+
+async function lookupUsageForKey(key: ApiKeyRow, maskedKey: string): Promise<UsageLookupResponse> {
+  const pool = getSub2Pool();
 
   const queryParams = [key.id];
 
@@ -282,7 +325,7 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
   return {
     key: {
       name: key.name,
-      maskedKey: maskApiKey(apiKey),
+      maskedKey,
       createdAt: key.created_at.toISOString(),
       lastUsedAt: toIso(key.last_used_at),
       expiresAt: toIso(key.expires_at)
@@ -295,7 +338,8 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
       imageRequests: toNumber(summary.image_requests),
       windowUsage: {
         fiveHours: createUsageWindow(key.usage_5h, key.rate_limit_5h, key.window_5h_start),
-        twentyFourHours: createUsageWindow(key.usage_1d, key.rate_limit_1d, key.window_1d_start)
+        twentyFourHours: createUsageWindow(key.usage_1d, key.rate_limit_1d, key.window_1d_start),
+        sevenDays: createUsageWindow(key.usage_7d, key.rate_limit_7d, key.window_7d_start)
       },
       firstRequestAt: toIso(summary.first_request_at as Date | string | null),
       lastRequestAt: toIso(summary.last_request_at as Date | string | null)
@@ -324,4 +368,18 @@ export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupRe
       serviceTier: row.service_tier
     }))
   };
+}
+
+export async function lookupUsageByApiKey(apiKey: string): Promise<UsageLookupResponse> {
+  const key = await findApiKeyByApiKey(apiKey);
+  assertUsableKey(key);
+
+  return lookupUsageForKey(key, maskApiKey(apiKey));
+}
+
+export async function lookupUsageByApiKeyId(apiKeyId: string, maskedKey: string): Promise<UsageLookupResponse> {
+  const key = await findApiKeyById(apiKeyId);
+  assertUsableKey(key);
+
+  return lookupUsageForKey(key, maskedKey);
 }
